@@ -4,7 +4,14 @@
  */
 package com.arsan.model;
 
+import com.arsan.db.DbConnection;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -14,14 +21,14 @@ public class Videogame {
     public static AtomicInteger count = new AtomicInteger(0);
     private int id;
     private String nombre;
-    private Genero genero;
+    private String genero;
     private double valoracion;
     private boolean jugado;
 
     public Videogame() {
     }    
        
-    public Videogame(int id, String nombre, Genero genero, double valoracion, boolean jugado) {
+    public Videogame(int id, String nombre, String genero, double valoracion, boolean jugado) {
         this.id = id;
         this.nombre = nombre;
         this.genero = genero;
@@ -30,7 +37,7 @@ public class Videogame {
         count.getAndIncrement();
     }
 
-    public Videogame(String nombre, Genero genero, double valoracion, boolean jugado) {
+    public Videogame(String nombre, String genero, double valoracion, boolean jugado) {
         this.nombre = nombre;
         this.genero = genero;
         this.valoracion = valoracion;
@@ -43,8 +50,10 @@ public class Videogame {
         ++n;*/
         
     }
+    
+    
     //llamamos constructor anterior
-    /*public Videogame(String nombre, Genero genero, boolean jugado) {
+    /*public Videogame(String nombre, String genero, boolean jugado) {
         this(nombre, genero, 0.0, jugado);
     }*/
     //generamos getters and setters de las diferentes constantes
@@ -64,11 +73,11 @@ public class Videogame {
         this.nombre = nombre;
     }
 
-    public Genero getGenero() {
+    public String getGenero() {
         return genero;
     }
 
-    public void setGenero(Genero genero) {
+    public void setGenero(String genero) {
         this.genero = genero;
     }
 
@@ -91,6 +100,38 @@ public class Videogame {
     @Override
     public String toString() {
         return "Nombre del videojuego " + nombre + "id=" + id + ", genero=" + genero + ", valoracion=" + valoracion + ", jugado=" + jugado;
+    }
+    
+    public String insertarDatos(){
+        int val = 0;
+        DbConnection dbconn = null;
+        try {
+            dbconn = new DbConnection();
+            valoracion = (valoracion<0) ? 0.0:(valoracion>10) ? 10.0: valoracion; 
+            val = dbconn.createVideogame(nombre, genero.toUpperCase(), valoracion, jugado);
+        } catch (IOException ex) {
+            Logger.getLogger(Videogame.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            Logger.getLogger(Videogame.class.getName()).log(Level.SEVERE, null, ex);
+        } finally{
+            dbconn.closeConnection();
+        }
+        return (val==0)?"No se ha podido insertar":"Se ha insertado";
+    } 
+    
+    public Set<Videogame> mostrarTodo(){
+        DbConnection dbconn = null;
+        Set<Videogame> lista = null;
+        try {
+            dbconn = new DbConnection();
+            lista = (Set<Videogame>) dbconn.readAllVideogames();
+        } catch (IOException ex) {
+            Logger.getLogger(Videogame.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            Logger.getLogger(Videogame.class.getName()).log(Level.SEVERE, null, ex);
+        } finally{
+            dbconn.closeConnection();
+        }return lista;
     }
     
 }

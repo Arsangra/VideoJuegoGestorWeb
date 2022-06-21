@@ -4,7 +4,7 @@
  */
 package com.arsan.db;
 
-import com.arsan.model.Genero;
+
 import com.arsan.model.Videogame;
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,6 +18,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collection;
 import java.util.Properties;
 import java.util.Set;
 import java.util.HashSet;
@@ -37,15 +38,16 @@ public class DbConnection {
     public DbConnection() throws IOException, SQLException {
         //try con recursos, no evita colocar cath o finaly que no haría desarrollar mucho código
         Path ruta = Paths.get(".\\src\\com\\arsan\\model\\credentials.properties");
-        try ( FileInputStream fis = new FileInputStream(new File(ruta.toAbsolutePath().toString()));) {
-            prop.load(fis);
-            conn = DriverManager.getConnection(prop.get("URL").toString());
+        //try ( FileInputStream fis = new FileInputStream(new File(ruta.toAbsolutePath().toString()));) {
+           // prop.load(fis);
+            conn = DriverManager.getConnection("jdbc:derby://localhost:1527/videogamedb;create=true");
             setVideogames.addAll(readAllVideogames());
-        }//llama a close() para liberar espacio en memoria
+        //}//llama a close() para liberar espacio en memoria
     }
 
     public void closeConnection() {
         try {
+            if(!conn.isClosed())
             conn.close();
 
         } catch (SQLException ex) {
@@ -54,13 +56,13 @@ public class DbConnection {
     }
 
     //método para implementar las constatntes en la base de datos
-    public boolean createVideogame(String nombre, Genero genero, double valoracion, boolean jugado) throws SQLException {
+    public int createVideogame(String nombre, String genero, double valoracion, boolean jugado) throws SQLException {
         String sql = "INSERT INTO VIDEOGAMES (titulo, genero, valoracion, jugado) VALUES (?,?,?,?)";
         //try para la conexión a la base de datos, se realiza siempre con DriverManager        
         try ( PreparedStatement stm = conn.prepareStatement(sql);) {
 
             stm.setString(1, nombre.trim());
-            stm.setString(2, genero.name());
+            stm.setString(2, genero);
             valoracion = (jugado) ? valoracion : 0.0;
             stm.setDouble(3, valoracion);
             stm.setBoolean(4, jugado);
@@ -71,11 +73,10 @@ public class DbConnection {
             });
 
             if (!videogamesNames.contains(nombre)) {
-                stm.execute();
-                setVideogames.add(new Videogame(Videogame.count.incrementAndGet(), nombre, genero, valoracion, jugado));
-                return true;
+                setVideogames.add(new Videogame(Videogame.count.incrementAndGet(), nombre, genero, valoracion, jugado));                
+                return stm.executeUpdate();
             }
-            return false;
+            return 0;
 
         }
 
@@ -88,7 +89,7 @@ public class DbConnection {
             ResultSet rs = st.executeQuery(sql);
             setVideogames.clear();
             while (rs.next()) {
-                setVideogames.add(new Videogame(rs.getInt(1), rs.getString(2), Genero.valueOf(rs.getString(3)), rs.getDouble(4), rs.getBoolean(5)));
+                setVideogames.add(new Videogame(rs.getInt(1), rs.getString(2), String.valueOf(rs.getString(3)), rs.getDouble(4), rs.getBoolean(5)));
             }
 
         }
@@ -103,7 +104,7 @@ public class DbConnection {
             ResultSet rs = stm.executeQuery();
             while (rs.next()) {
                 Videogame.count.getAndDecrement();
-                return new Videogame(rs.getInt(1), rs.getString(2), Genero.valueOf(rs.getString(3)), rs.getDouble(4), rs.getBoolean(5));
+                return new Videogame(rs.getInt(1), rs.getString(2), String.valueOf(rs.getString(3)), rs.getDouble(4), rs.getBoolean(5));
             }
 
         }
@@ -117,27 +118,27 @@ public class DbConnection {
             ResultSet rs = stm.executeQuery();
             while (rs.next()) {
                 Videogame.count.getAndDecrement();
-                return new Videogame(rs.getInt(1), rs.getString(2), Genero.valueOf(rs.getString(3)), rs.getDouble(4), rs.getBoolean(5));
+                return new Videogame(rs.getInt(1), rs.getString(2), String.valueOf(rs.getString(3)), rs.getDouble(4), rs.getBoolean(5));
             }
 
         }
         return new Videogame();
     }
 
-    public String updateVideogame(int id, String titulo, Genero genero, double valoracion, boolean jugado) throws SQLException {
+    public String updateVideogame(int id, String titulo, String genero, double valoracion, boolean jugado) throws SQLException {
         String sql = "UPDATE Videogames SET titulo=?, genero=?, valoracion=?, jugado=? WHERE ID = ?";
         String mensaje = "Registro modificado con éxito";
         boolean isSet = setVideogames.stream().filter(v -> v.getId() == id).count() == 1;
         if (isSet && !titulo.isEmpty()) {
             try ( PreparedStatement stm = conn.prepareStatement(sql);) {
                 stm.setString(1, titulo.trim());
-                stm.setString(2, genero.name());
+                stm.setString(2, genero);
                 stm.setDouble(3, valoracion);
                 stm.setBoolean(4, jugado);
                 stm.setInt(5, id);
                 stm.execute();
             }
-            setVideogames = readAllVideogames();
+            setVideogames = (Set<Videogame>) readAllVideogames();
         } else {
             mensaje = isSet ? "Debe introducir un nombre de registro válido" : "No hay ningún registro con el id especificado";
 
@@ -153,7 +154,7 @@ public class DbConnection {
             try ( PreparedStatement stm = conn.prepareStatement(sql);) {
                 stm.setInt(1, id);
                 stm.execute();
-                setVideogames = readAllVideogames();
+                setVideogames = (Set<Videogame>) readAllVideogames();
                 return true;
             }            
         }
